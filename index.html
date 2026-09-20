@@ -1,0 +1,1854 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1, viewport-fit=cover"
+  >
+
+  <title>PeerNest — Không gian đồng đẳng cho sinh viên</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  >
+
+  <style>
+    :root {
+      --paper: #eef1ec;
+      --paper-deep: #e3e8e2;
+      --ink: #17231f;
+      --ink-soft: #4b5a54;
+      --teal: #2f5f58;
+      --teal-dark: #244b46;
+      --amber: #b9822e;
+      --plum: #6b5b8e;
+      --card: #e2e8e1;
+      --card-dark: #d8e0d9;
+      --line: #c8d1c9;
+      --dark: #12211e;
+      --dark-soft: #1d302b;
+
+      box-sizing: border-box;
+    }
+
+    * {
+      box-sizing: inherit;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: "Inter", sans-serif;
+      font-size: 1.05rem;
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+      font-family: "Fraunces", serif;
+      font-weight: 500;
+      line-height: 1.15;
+      letter-spacing: -0.01em;
+    }
+
+    a,
+    button,
+    input {
+      font: inherit;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    button {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .wrap {
+      width: 100%;
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 0 28px;
+    }
+
+    /* ================= HEADER ================= */
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      border-bottom: 1px solid var(--line);
+      background: rgba(238, 241, 236, 0.94);
+      backdrop-filter: blur(8px);
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 78px;
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 14px 28px;
+    }
+
+    /* PeerNest và menu nằm bên trái */
+    .nav-left {
+      display: flex;
+      align-items: center;
+      gap: 30px;
+      order: 1;
+      min-width: 0;
+    }
+
+    /* Nút đăng nhập nằm bên phải */
+    .desktop-auth {
+      order: 2;
+      flex-shrink: 0;
+      margin-left: auto;
+    }
+
+    .brand {
+      color: var(--teal);
+      font-family: "Fraunces", serif;
+      font-size: 2.05rem;
+      font-weight: 600;
+      line-height: 1;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .nav-links {
+      display: none;
+      align-items: center;
+      gap: 20px;
+      list-style: none;
+      font-size: 0.94rem;
+    }
+
+    @media (min-width: 900px) {
+      .nav-links {
+        display: flex;
+      }
+    }
+
+    .nav-links a,
+    .mobile-menu a {
+      color: var(--ink-soft);
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .nav-links a {
+      padding-bottom: 3px;
+      border-bottom: 2px solid transparent;
+    }
+
+    .nav-links a:hover,
+    .nav-links a.active {
+      color: var(--teal);
+      border-color: var(--teal);
+    }
+
+    .menu-btn {
+      display: block;
+      order: 3;
+      flex-shrink: 0;
+      margin-left: 16px;
+      border: 0;
+      background: transparent;
+      color: var(--teal);
+      font-size: 1.45rem;
+      cursor: pointer;
+    }
+
+    @media (min-width: 900px) {
+      .menu-btn {
+        display: none;
+      }
+    }
+
+    .mobile-menu {
+      display: none;
+      flex-direction: column;
+      gap: 2px;
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 0 28px 18px;
+    }
+
+    .mobile-menu.open {
+      display: flex;
+    }
+
+    .mobile-menu a {
+      padding: 12px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .mobile-menu a.active {
+      color: var(--teal);
+    }
+
+    @media (max-width: 899px) {
+      .nav {
+        min-height: 70px;
+        padding: 14px 20px;
+      }
+
+      .desktop-auth {
+        display: none;
+      }
+
+      .nav-left {
+        gap: 0;
+      }
+
+      .brand {
+        font-size: 1.85rem;
+      }
+
+      .mobile-menu {
+        padding-right: 20px;
+        padding-left: 20px;
+      }
+    }
+
+    /* ================= VIEW ================= */
+
+    .view {
+      display: none;
+      animation: fade 0.3s ease;
+    }
+
+    .view.active {
+      display: block;
+    }
+
+    @keyframes fade {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .view {
+        animation: none;
+      }
+
+      html {
+        scroll-behavior: auto;
+      }
+    }
+
+    /* ================= HOME ================= */
+
+    .hero {
+      padding: 80px 0 58px;
+    }
+
+    .hero .tag {
+      display: inline-block;
+      margin-bottom: 18px;
+      padding-bottom: 2px;
+      border-bottom: 1px solid var(--teal);
+      color: var(--teal);
+      font-size: 0.96rem;
+    }
+
+    .hero h1 {
+      max-width: 720px;
+      font-size: clamp(2.15rem, 5vw, 3.3rem);
+    }
+
+    .hero p {
+      max-width: 610px;
+      margin-top: 20px;
+      color: var(--ink-soft);
+      font-size: 1.15rem;
+    }
+
+    .section {
+      padding: 56px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .section-head {
+      max-width: 650px;
+      margin-bottom: 34px;
+    }
+
+    .section-head h2 {
+      font-size: clamp(1.65rem, 3.5vw, 2.25rem);
+    }
+
+    .section-head p {
+      margin-top: 10px;
+      color: var(--ink-soft);
+      font-size: 1.06rem;
+    }
+
+    .cards {
+      display: grid;
+      gap: 20px;
+    }
+
+    @media (min-width: 780px) {
+      .cards {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    .card {
+      display: block;
+      padding: 26px 24px;
+      border-top: 4px solid var(--accent);
+      border-radius: 6px;
+      background: var(--card);
+      box-shadow: 0 5px 16px rgba(47, 95, 88, 0.08);
+      text-decoration: none;
+      cursor: pointer;
+      transition:
+        transform 0.16s ease,
+        box-shadow 0.16s ease,
+        background 0.16s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-3px);
+      background: var(--card-dark);
+      box-shadow: 0 10px 22px rgba(47, 95, 88, 0.14);
+    }
+
+    .card:nth-child(1) {
+      --accent: var(--teal);
+    }
+
+    .card:nth-child(2) {
+      --accent: var(--amber);
+    }
+
+    .card:nth-child(3) {
+      --accent: var(--plum);
+    }
+
+    .card h3 {
+      margin-bottom: 6px;
+      color: var(--accent);
+      font-size: 1.3rem;
+    }
+
+    .card .sub {
+      margin-bottom: 12px;
+      color: var(--ink-soft);
+      font-size: 0.92rem;
+    }
+
+    .card p {
+      color: var(--ink-soft);
+      font-size: 1rem;
+    }
+
+    .card .go {
+      display: inline-block;
+      margin-top: 14px;
+      color: var(--accent);
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    /* ================= DETAIL PAGES ================= */
+
+    .detail-hero {
+      padding: 62px 0 8px;
+    }
+
+    .detail-hero .back {
+      color: var(--ink-soft);
+      font-size: 0.95rem;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .detail-hero .back:hover {
+      color: var(--teal);
+    }
+
+    .detail-hero h1 {
+      margin-top: 18px;
+      color: var(--accent-detail, var(--teal));
+      font-size: clamp(1.9rem, 4.5vw, 2.7rem);
+    }
+
+    .detail-hero .sub {
+      margin-top: 8px;
+      color: var(--ink-soft);
+      font-size: 1.1rem;
+    }
+
+    .prose {
+      max-width: 700px;
+      padding: 36px 0 72px;
+    }
+
+    .prose p {
+      margin-bottom: 18px;
+      font-size: 1.08rem;
+    }
+
+    .prose strong {
+      font-weight: 600;
+    }
+
+    .goals {
+      display: grid;
+      gap: 22px;
+    }
+
+    @media (min-width: 720px) {
+      .goals {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    .goal {
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+
+    .goal h3 {
+      margin-bottom: 8px;
+      color: var(--teal);
+      font-family: "Inter", sans-serif;
+      font-size: 1.05rem;
+      font-weight: 600;
+    }
+
+    .goal p {
+      color: var(--ink-soft);
+      font-size: 1rem;
+    }
+
+    .timeline {
+      position: relative;
+      max-width: 750px;
+      padding-left: 36px;
+    }
+
+    .timeline::before {
+      position: absolute;
+      top: 6px;
+      bottom: 6px;
+      left: 9px;
+      width: 1px;
+      background: var(--line);
+      content: "";
+    }
+
+    .phase {
+      position: relative;
+      padding-bottom: 34px;
+    }
+
+    .phase:last-child {
+      padding-bottom: 0;
+    }
+
+    .phase::before {
+      position: absolute;
+      top: 0;
+      left: -36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--teal);
+      color: #eef1ec;
+      content: attr(data-number);
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+
+    .phase h3 {
+      margin-bottom: 8px;
+      font-size: 1.2rem;
+    }
+
+    .phase p,
+    .phase li {
+      color: var(--ink-soft);
+      font-size: 1rem;
+    }
+
+    .phase ul {
+      margin: 8px 0 0 18px;
+    }
+
+    .phase li {
+      margin-bottom: 4px;
+    }
+
+    /* ================= BUTTONS ================= */
+
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 24px;
+    }
+
+    .cta,
+    .auth-btn {
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      text-decoration: none;
+      transition:
+        transform 0.15s ease,
+        box-shadow 0.15s ease,
+        background 0.15s ease;
+    }
+
+    .cta {
+      display: inline-block;
+      padding: 14px 26px;
+      border: 2px solid var(--teal);
+      background: var(--teal);
+      box-shadow: 0 6px 18px rgba(47, 95, 88, 0.25);
+      color: #eef1ec;
+      font-size: 1rem;
+    }
+
+    .cta:hover {
+      transform: translateY(-2px);
+      background: var(--teal-dark);
+      box-shadow: 0 10px 22px rgba(47, 95, 88, 0.32);
+    }
+
+    .cta.ghost {
+      border: 2px solid var(--teal);
+      background: transparent;
+      box-shadow: none;
+      color: var(--teal);
+    }
+
+    .cta.ghost:hover {
+      background: var(--teal);
+      color: #eef1ec;
+    }
+
+    .auth-btn {
+      display: inline-block;
+      padding: 10px 20px;
+      border: 2px solid var(--amber);
+      background: var(--amber);
+      box-shadow: 0 4px 12px rgba(185, 130, 46, 0.25);
+      color: #f5eee0;
+      font-size: 0.92rem;
+      white-space: nowrap;
+    }
+
+    .auth-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 18px rgba(185, 130, 46, 0.35);
+    }
+
+    .mobile-menu .auth-btn {
+      width: 100%;
+      margin-top: 12px;
+      text-align: center;
+    }
+
+    /* ================= AUTH MODAL ================= */
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(18, 33, 30, 0.62);
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal {
+      position: relative;
+      width: 100%;
+      max-width: 430px;
+      padding: 32px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--paper-deep);
+      box-shadow: 0 20px 50px rgba(18, 33, 30, 0.32);
+    }
+
+    .modal h2 {
+      margin-bottom: 6px;
+      color: var(--teal);
+      font-size: 1.65rem;
+    }
+
+    .modal .sub {
+      margin-bottom: 20px;
+      color: var(--ink-soft);
+      font-size: 0.95rem;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 14px;
+      right: 18px;
+      border: 0;
+      background: transparent;
+      color: var(--ink-soft);
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+
+    .modal-close:hover {
+      color: var(--teal);
+    }
+
+    .auth-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 22px;
+    }
+
+    .auth-tab {
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--card);
+      color: var(--ink-soft);
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .auth-tab.active {
+      border-color: var(--teal);
+      background: var(--teal);
+      color: #eef1ec;
+    }
+
+    .field {
+      margin-bottom: 15px;
+    }
+
+    .field label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--ink);
+      font-size: 0.92rem;
+      font-weight: 600;
+    }
+
+    .field input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      outline: none;
+      background: var(--paper);
+      color: var(--ink);
+      font-size: 1rem;
+    }
+
+    .field input::placeholder {
+      color: #74827b;
+    }
+
+    .field input:focus {
+      border-color: var(--teal);
+      outline: 2px solid rgba(47, 95, 88, 0.35);
+      outline-offset: 1px;
+    }
+
+    .modal-submit {
+      width: 100%;
+      margin-top: 5px;
+      padding: 13px;
+      border: 0;
+      border-radius: 6px;
+      background: var(--teal);
+      box-shadow: 0 6px 16px rgba(47, 95, 88, 0.3);
+      color: #eef1ec;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .modal-submit:hover {
+      background: var(--teal-dark);
+    }
+
+    .modal-submit:disabled {
+      cursor: wait;
+      opacity: 0.65;
+    }
+
+    .modal-msg {
+      min-height: 1.4em;
+      margin-top: 14px;
+      text-align: center;
+      font-size: 0.9rem;
+    }
+
+    .modal-msg.success {
+      color: var(--teal);
+    }
+
+    .modal-msg.error {
+      color: #a63f38;
+    }
+
+    /* ================= FOOTER ================= */
+
+    footer {
+      padding: 48px 0 36px;
+      background: var(--dark);
+      color: #dce4e0;
+    }
+
+    .foot-grid {
+      display: grid;
+      gap: 30px;
+    }
+
+    @media (min-width: 720px) {
+      .foot-grid {
+        grid-template-columns: 2fr 1fr 1fr;
+      }
+    }
+
+    footer h4 {
+      margin-bottom: 10px;
+      color: #eef1ec;
+      font-size: 1.1rem;
+    }
+
+    footer p,
+    footer li {
+      color: #aebbb5;
+      font-size: 0.88rem;
+    }
+
+    footer ul {
+      list-style: none;
+    }
+
+    footer li {
+      margin-bottom: 8px;
+    }
+
+    footer a {
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      color: #eef1ec;
+    }
+
+    .foot-bottom {
+      margin-top: 36px;
+      padding-top: 18px;
+      border-top: 1px solid #2a3b36;
+      color: #7e8e88;
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- ================= HEADER ================= -->
+
+  <header>
+    <div class="nav">
+      <!-- PeerNest và menu bên trái -->
+      <div class="nav-left">
+        <span class="brand" data-route="home">
+          PeerNest
+        </span>
+
+        <ul class="nav-links">
+          <li>
+            <a data-route="home">Trang chủ</a>
+          </li>
+
+          <li>
+            <a data-route="safe-space">Safe Space</a>
+          </li>
+
+          <li>
+            <a data-route="first-aid">First-Aid Kit</a>
+          </li>
+
+          <li>
+            <a data-route="mindset-gym">Mindset Gym</a>
+          </li>
+
+          <li>
+            <a data-route="muc-tieu">Mục tiêu</a>
+          </li>
+
+          <li>
+            <a data-route="lo-trinh">Lộ trình</a>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Đăng nhập/đăng xuất bên phải -->
+      <button class="auth-btn desktop-auth" id="authBtnDesktop">
+        Đăng nhập
+      </button>
+
+      <button
+        class="menu-btn"
+        id="menuBtn"
+        aria-label="Mở menu"
+        type="button"
+      >
+        ☰
+      </button>
+    </div>
+
+    <!-- Menu mobile -->
+    <div class="mobile-menu" id="mobileMenu">
+      <a data-route="home">Trang chủ</a>
+      <a data-route="safe-space">Safe Space</a>
+      <a data-route="first-aid">First-Aid Kit</a>
+      <a data-route="mindset-gym">Mindset Gym</a>
+      <a data-route="muc-tieu">Mục tiêu</a>
+      <a data-route="lo-trinh">Lộ trình</a>
+
+      <button class="auth-btn" id="authBtnMobile" type="button">
+        Đăng nhập
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= AUTH MODAL ================= -->
+
+  <div class="modal-overlay" id="authOverlay">
+    <div class="modal">
+      <button
+        class="modal-close"
+        id="modalClose"
+        aria-label="Đóng"
+        type="button"
+      >
+        ×
+      </button>
+
+      <h2 id="authTitle">
+        Đăng nhập
+      </h2>
+
+      <div class="sub" id="authSubtitle">
+        Đăng nhập bằng tài khoản PeerNest của bạn.
+      </div>
+
+      <div class="auth-tabs">
+        <button
+          class="auth-tab active"
+          id="loginTab"
+          type="button"
+        >
+          Đăng nhập
+        </button>
+
+        <button
+          class="auth-tab"
+          id="registerTab"
+          type="button"
+        >
+          Đăng ký
+        </button>
+      </div>
+
+      <form id="authForm">
+        <div class="field" id="nameField" style="display: none;">
+          <label for="authName">
+            Họ và tên
+          </label>
+
+          <input
+            type="text"
+            id="authName"
+            placeholder="Nguyễn Văn A"
+            autocomplete="name"
+          >
+        </div>
+
+        <div class="field">
+          <label for="authEmail">
+            Email
+          </label>
+
+          <input
+            type="email"
+            id="authEmail"
+            placeholder="email@example.com"
+            autocomplete="email"
+            required
+          >
+        </div>
+
+        <div class="field">
+          <label for="authPassword">
+            Mật khẩu
+          </label>
+
+          <input
+            type="password"
+            id="authPassword"
+            placeholder="Tối thiểu 6 ký tự"
+            minlength="6"
+            autocomplete="current-password"
+            required
+          >
+        </div>
+
+        <button
+          type="submit"
+          class="modal-submit"
+          id="authSubmit"
+        >
+          Đăng nhập
+        </button>
+
+        <div class="modal-msg" id="authMsg"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= MAIN ================= -->
+
+  <main>
+    <!-- HOME -->
+    <section class="view" id="view-home">
+      <div class="hero wrap">
+        <span class="tag">
+          Nền tảng hỗ trợ tâm lý đồng đẳng cho sinh viên
+        </span>
+
+        <h1>
+          Một nơi để dừng lại, trước khi cảm xúc trở nên quá tải.
+        </h1>
+
+        <p>
+          PeerNest là không gian trực tuyến giúp sinh viên tìm được người
+          lắng nghe không phán xét, học cách bình tĩnh lại trong khoảnh khắc
+          khủng hoảng và dần thay đổi cách nhìn nhận về thất bại học thuật.
+        </p>
+
+        <div class="cta-row">
+          <a class="cta" data-route="safe-space">
+            Khám phá các phân hệ ↗
+          </a>
+
+          <a class="cta ghost" data-route="lo-trinh">
+            Xem lộ trình triển khai
+          </a>
+        </div>
+      </div>
+
+      <div class="section wrap">
+        <div class="section-head">
+          <h2>
+            Ba phân hệ, ba điểm chạm tâm lý
+          </h2>
+
+          <p>
+            Mỗi phân hệ giải quyết một rào cản cụ thể sinh viên thường gặp
+            khi đối diện áp lực học tập.
+          </p>
+        </div>
+
+        <div class="cards">
+          <a class="card" data-route="safe-space">
+            <h3>
+              Safe Space
+            </h3>
+
+            <div class="sub">
+              Trò chuyện ẩn danh 1:1
+            </div>
+
+            <p>
+              Chọn người hỗ trợ theo từ khóa hoặc ngành học, trò chuyện ẩn danh
+              hoàn toàn.
+            </p>
+
+            <span class="go">
+              Tìm hiểu thêm →
+            </span>
+          </a>
+
+          <a class="card" data-route="first-aid">
+            <h3>
+              First-Aid Kit
+            </h3>
+
+            <div class="sub">
+              Sơ cứu cảm xúc khẩn cấp
+            </div>
+
+            <p>
+              Bài tập ngắt mạch sinh lý tức thời khi hoảng loạn hoặc quá tải.
+            </p>
+
+            <span class="go">
+              Tìm hiểu thêm →
+            </span>
+          </a>
+
+          <a class="card" data-route="mindset-gym">
+            <h3>
+              Mindset Gym
+            </h3>
+
+            <div class="sub">
+              Tái cấu trúc nhận thức
+            </div>
+
+            <p>
+              Thư viện nội dung giúp bình thường hóa sai lầm và nhìn nhận lại
+              thất bại.
+            </p>
+
+            <span class="go">
+              Tìm hiểu thêm →
+            </span>
+          </a>
+        </div>
+      </div>
+
+      <div class="section wrap">
+        <div class="section-head">
+          <h2>
+            Vì sao PeerNest tồn tại?
+          </h2>
+
+          <p>
+            Tạo ra một không gian hỗ trợ giữa những người cùng tuổi — tôn trọng,
+            không phán xét — để bù đắp sự thiếu hụt hỗ trợ tâm lý học đường,
+            giúp sinh viên thoát khỏi vòng lặp giữa cảm xúc tiêu cực và cách
+            ứng phó không hiệu quả.
+          </p>
+        </div>
+
+        <a class="cta ghost" data-route="muc-tieu">
+          Xem mục tiêu chi tiết →
+        </a>
+      </div>
+    </section>
+
+    <!-- SAFE SPACE -->
+    <section class="view" id="view-safe-space">
+      <div class="detail-hero wrap">
+        <a class="back" data-route="home">
+          ← Trang chủ
+        </a>
+
+        <h1 style="--accent-detail: var(--teal);">
+          Safe Space
+        </h1>
+
+        <div class="sub">
+          Không gian trò chuyện ẩn danh 1:1
+        </div>
+      </div>
+
+      <div class="prose wrap">
+        <p>
+          <strong>Cơ chế hoạt động:</strong>
+          Sinh viên đăng nhập bằng email trường để xác thực nội bộ, nhưng hệ
+          thống cấp một định danh ảo gồm ID và avatar ẩn danh. Sinh viên chọn
+          người hỗ trợ dựa trên từ khóa như “Áp lực thi cử”, “Khủng hoảng điểm
+          số”, “Sợ thuyết trình trước đám đông” hoặc theo ngành học.
+        </p>
+
+        <p>
+          Sau khi chọn người trò chuyện, sinh viên gửi tin nhắn qua tài khoản
+          ẩn danh và chờ phản hồi. Hệ thống ghép cặp dựa trên khả năng hỗ trợ
+          của tình nguyện viên và sự tương thích ngành học.
+        </p>
+
+        <p>
+          <strong>Cơ sở thực tiễn:</strong>
+          Giải quyết trực tiếp rào cản sợ bị đánh giá, sợ mất mặt trước bạn bè.
+          Tính ẩn danh tạo cảm giác an toàn để sinh viên dám bộc lộ những góc
+          khuất mà bình thường phải che giấu vì sợ lộ khuyết điểm.
+        </p>
+
+        <div class="cta-row">
+          <a class="cta ghost" data-route="first-aid">
+            Tiếp theo: First-Aid Kit →
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- FIRST-AID KIT -->
+    <section class="view" id="view-first-aid">
+      <div class="detail-hero wrap">
+        <a class="back" data-route="home">
+          ← Trang chủ
+        </a>
+
+        <h1 style="--accent-detail: var(--amber);">
+          First-Aid Kit
+        </h1>
+
+        <div class="sub">
+          Trạm sơ cứu cảm xúc khẩn cấp
+        </div>
+      </div>
+
+      <div class="prose wrap">
+        <p>
+          <strong>Cơ chế hoạt động:</strong>
+          Cung cấp ngay các nút bấm khẩn cấp như “Tôi đang hoảng loạn”,
+          “Não tôi trống rỗng”, dẫn đến audio hoặc video ngắn hướng dẫn bài tập
+          ngắt mạch sinh lý như hít thở sâu, đếm nhịp từ 1 đến 10 và nắm chặt
+          tay.
+        </p>
+
+        <p>
+          <strong>Cơ sở thực tiễn:</strong>
+          Can thiệp ngay lập tức vào trạng thái “đóng băng nhận thức” và vòng
+          lặp sang chấn tâm-thể như chân tay lạnh, đổ mồ hôi hoặc tim đập nhanh
+          khi sinh viên quá tải trong lúc học, chuẩn bị thi hoặc thuyết trình.
+        </p>
+
+        <div class="cta-row">
+          <a class="cta ghost" data-route="mindset-gym">
+            Tiếp theo: Mindset Gym →
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- MINDSET GYM -->
+    <section class="view" id="view-mindset-gym">
+      <div class="detail-hero wrap">
+        <a class="back" data-route="home">
+          ← Trang chủ
+        </a>
+
+        <h1 style="--accent-detail: var(--plum);">
+          Mindset Gym
+        </h1>
+
+        <div class="sub">
+          Không gian tái cấu trúc nhận thức
+        </div>
+      </div>
+
+      <div class="prose wrap">
+        <p>
+          <strong>Cơ chế hoạt động:</strong>
+          Thư viện nội dung số gồm podcast, blog đồng đẳng và infographic
+          hướng dẫn kỹ năng “tái định khung nhận thức”. Nội dung tập trung vào
+          việc bình thường hóa sai lầm, chấp nhận vấn đề hiện hữu chỉ là tạm
+          thời và nhận thức rõ giá trị con người tách biệt khỏi điểm số.
+        </p>
+
+        <p>
+          <strong>Cơ sở thực tiễn:</strong>
+          Thúc đẩy sinh viên chuyển dịch từ lạm dụng ứng phó né tránh như chỉ
+          đi ngủ, chơi game hoặc lướt mạng xã hội để trốn tránh sang cách ứng
+          phó hiệu quả hơn, tập trung vào nhận thức và nguyên nhân cốt lõi.
+        </p>
+
+        <div class="cta-row">
+          <a class="cta ghost" data-route="muc-tieu">
+            Xem mục tiêu dự án →
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- MỤC TIÊU -->
+    <section class="view" id="view-muc-tieu">
+      <div class="detail-hero wrap">
+        <a class="back" data-route="home">
+          ← Trang chủ
+        </a>
+
+        <h1>
+          Mục đích và mục tiêu kỳ vọng
+        </h1>
+      </div>
+
+      <div class="prose wrap">
+        <p>
+          Tạo ra một không gian hỗ trợ của những người cùng tuổi, tôn trọng và
+          không phán xét, để bù đắp sự thiếu hụt hỗ trợ tâm lý học đường.
+        </p>
+
+        <p>
+          Mô hình đóng vai trò là bệ đỡ, giúp sinh viên thoát khỏi vòng lặp
+          luẩn quẩn giữa cảm xúc tiêu cực và các hành vi ứng phó không hiệu quả
+          như trì hoãn, tự trách hoặc phó mặc.
+        </p>
+      </div>
+
+      <div class="wrap" style="padding-bottom: 64px;">
+        <div class="goals">
+          <div class="goal">
+            <h3>
+              Giảm ứng phó kém thích nghi
+            </h3>
+
+            <p>
+              Chuyển hóa ít nhất 40% người dùng từ phân tâm tạm thời như giải
+              trí bề mặt hoặc lướt mạng xã hội sang chủ động tìm người lắng
+              nghe và phân tích nguyên nhân cốt lõi.
+            </p>
+          </div>
+
+          <div class="goal">
+            <h3>
+              Củng cố lòng tự trọng
+            </h3>
+
+            <p>
+              Xóa bỏ tư duy coi điểm số là thước đo duy nhất. Qua tham vấn đồng
+              đẳng, giúp sinh viên nhìn thất bại học thuật như một phần của quá
+              trình phát triển bản thân.
+            </p>
+          </div>
+
+          <div class="goal">
+            <h3>
+              Mở rộng ranh giới hỗ trợ
+            </h3>
+
+            <p>
+              Trở thành màng lọc sơ cấp hiệu quả, là bước đệm an toàn cho sinh
+              viên chưa dám gọi đường dây nóng tâm lý hoặc tìm đến chuyên gia.
+            </p>
+          </div>
+        </div>
+
+        <div class="cta-row">
+          <a class="cta" data-route="lo-trinh">
+            Xem lộ trình triển khai →
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- LỘ TRÌNH -->
+    <section class="view" id="view-lo-trinh">
+      <div class="detail-hero wrap">
+        <a class="back" data-route="home">
+          ← Trang chủ
+        </a>
+
+        <h1>
+          Lộ trình triển khai
+        </h1>
+
+        <div class="sub">
+          Bốn giai đoạn, từ xây dựng đội ngũ đến thu thập dữ liệu cải tiến
+          liên tục.
+        </div>
+      </div>
+
+      <div
+        class="wrap"
+        style="padding-top: 36px; padding-bottom: 72px;"
+      >
+        <div class="timeline">
+          <div class="phase" data-number="1">
+            <h3>
+              Xây dựng đội ngũ đồng đẳng viên chuyên môn hóa
+            </h3>
+
+            <p>
+              Tuyển chọn qua phỏng vấn trực tiếp, đánh giá kỹ năng lắng nghe và
+              năng lực thấu cảm, ưu tiên ứng viên ngành Tâm lý học và Công tác
+              xã hội.
+            </p>
+
+            <ul>
+              <li>
+                Kỹ năng lắng nghe không phán xét
+              </li>
+
+              <li>
+                Kỹ năng phản hồi và dẫn dắt tái đánh giá tình huống
+              </li>
+
+              <li>
+                Nhận diện giới hạn chuyên môn
+              </li>
+
+              <li>
+                Quy trình chuyển tuyến lên chuyên gia tâm lý
+              </li>
+            </ul>
+          </div>
+
+          <div class="phase" data-number="2">
+            <h3>
+              Vận hành thử nghiệm quy mô khoa hoặc khối ngành
+            </h3>
+
+            <p>
+              Triển khai hẹp tại một khối ngành có áp lực học thuật đặc thù,
+              thu thập góp ý từ sinh viên đã sử dụng rồi điều chỉnh theo thực
+              tế.
+            </p>
+          </div>
+
+          <div class="phase" data-number="3">
+            <h3>
+              Chiến dịch truyền thông “Bình thường hóa sai lầm”
+            </h3>
+
+            <p>
+              Đưa web vào hoạt động toàn trường, khai thác thông điệp “Không
+              con người nào là hoàn hảo” để sinh viên cởi bỏ lớp vỏ sĩ diện và
+              hiểu hơn về giá trị của hỗ trợ đồng đẳng.
+            </p>
+          </div>
+
+          <div class="phase" data-number="4">
+            <h3>
+              Thu thập dữ liệu và cải tiến
+            </h3>
+
+            <p>
+              Chuyên gia tâm lý tổng hợp các vấn đề nổi cộm để tổ chức tọa đàm
+              phù hợp, đồng thời sử dụng dữ liệu ẩn danh để tham mưu cho nhà
+              trường điều chỉnh phương pháp hỗ trợ và giảng dạy.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ================= FOOTER ================= -->
+
+  <footer>
+    <div class="wrap foot-grid">
+      <div>
+        <h4>
+          PeerNest
+        </h4>
+
+        <p>
+          Không gian đồng đẳng, ẩn danh và không phán xét — nơi sinh viên tìm
+          lại sự bình tĩnh trước khi mọi thứ trở nên quá sức.
+        </p>
+      </div>
+
+      <div>
+        <h4>
+          Phân hệ
+        </h4>
+
+        <ul>
+          <li>
+            <a data-route="safe-space">
+              Safe Space
+            </a>
+          </li>
+
+          <li>
+            <a data-route="first-aid">
+              First-Aid Kit
+            </a>
+          </li>
+
+          <li>
+            <a data-route="mindset-gym">
+              Mindset Gym
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <div>
+        <h4>
+          Thông tin
+        </h4>
+
+        <ul>
+          <li>
+            <a data-route="muc-tieu">
+              Mục tiêu
+            </a>
+          </li>
+
+          <li>
+            <a data-route="lo-trinh">
+              Lộ trình triển khai
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="wrap foot-bottom">
+      © 2026 PeerNest. Dự án hỗ trợ tâm lý học đường.
+    </div>
+  </footer>
+
+  <!-- ================= JAVASCRIPT ================= -->
+
+  <script>
+    const API_BASE_URL = "http://localhost:3000";
+
+    const views = document.querySelectorAll(".view");
+    const routeElements = document.querySelectorAll("[data-route]");
+
+    const menuBtn = document.getElementById("menuBtn");
+    const mobileMenu = document.getElementById("mobileMenu");
+
+    const authOverlay = document.getElementById("authOverlay");
+    const authForm = document.getElementById("authForm");
+    const authTitle = document.getElementById("authTitle");
+    const authSubtitle = document.getElementById("authSubtitle");
+    const authMsg = document.getElementById("authMsg");
+    const authSubmit = document.getElementById("authSubmit");
+
+    const authName = document.getElementById("authName");
+    const authEmail = document.getElementById("authEmail");
+    const authPassword = document.getElementById("authPassword");
+    const nameField = document.getElementById("nameField");
+
+    const loginTab = document.getElementById("loginTab");
+    const registerTab = document.getElementById("registerTab");
+
+    const authBtnDesktop = document.getElementById("authBtnDesktop");
+    const authBtnMobile = document.getElementById("authBtnMobile");
+
+    let authMode = "login";
+
+    function getSavedUser() {
+      try {
+        return JSON.parse(
+          localStorage.getItem("peernest_user")
+        );
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function getSavedToken() {
+      return localStorage.getItem("peernest_token");
+    }
+
+    function setAuthMessage(message, type) {
+      authMsg.textContent = message;
+      authMsg.className = "modal-msg " + (type || "");
+    }
+
+    function updateAuthButtons() {
+      const user = getSavedUser();
+      const token = getSavedToken();
+
+      if (user && token) {
+        authBtnDesktop.textContent = "Đăng xuất";
+        authBtnMobile.textContent = "Đăng xuất";
+
+        authBtnDesktop.title = user.email || "";
+        authBtnMobile.title = user.email || "";
+      } else {
+        authBtnDesktop.textContent = "Đăng nhập";
+        authBtnMobile.textContent = "Đăng nhập";
+
+        authBtnDesktop.title = "";
+        authBtnMobile.title = "";
+      }
+    }
+
+    function go(route) {
+      let nextRoute = route;
+
+      if (!document.getElementById("view-" + nextRoute)) {
+        nextRoute = "home";
+      }
+
+      views.forEach(function(view) {
+        view.classList.toggle(
+          "active",
+          view.id === "view-" + nextRoute
+        );
+      });
+
+      routeElements.forEach(function(element) {
+        element.classList.toggle(
+          "active",
+          element.dataset.route === nextRoute
+        );
+      });
+
+      mobileMenu.classList.remove("open");
+
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+      });
+
+      if (window.location.hash !== "#" + nextRoute) {
+        window.history.pushState(
+          null,
+          "",
+          "#" + nextRoute
+        );
+      }
+    }
+
+    routeElements.forEach(function(element) {
+      element.addEventListener("click", function(event) {
+        event.preventDefault();
+        go(element.dataset.route);
+      });
+    });
+
+    menuBtn.addEventListener("click", function() {
+      mobileMenu.classList.toggle("open");
+    });
+
+    window.addEventListener("popstate", function() {
+      const route = (
+        window.location.hash || "#home"
+      ).slice(1);
+
+      go(route);
+    });
+
+    function updateAuthMode() {
+      const isRegister = authMode === "register";
+
+      loginTab.classList.toggle("active", !isRegister);
+      registerTab.classList.toggle("active", isRegister);
+
+      nameField.style.display = isRegister
+        ? "block"
+        : "none";
+
+      authName.required = isRegister;
+
+      authTitle.textContent = isRegister
+        ? "Tạo tài khoản"
+        : "Đăng nhập";
+
+      authSubtitle.textContent = isRegister
+        ? "Tạo tài khoản để sử dụng PeerNest."
+        : "Đăng nhập bằng tài khoản PeerNest của bạn.";
+
+      authSubmit.textContent = isRegister
+        ? "Đăng ký tài khoản"
+        : "Đăng nhập";
+
+      authPassword.autocomplete = isRegister
+        ? "new-password"
+        : "current-password";
+    }
+
+    function openAuthModal(mode) {
+      authMode = mode || "login";
+
+      authOverlay.classList.add("open");
+      authForm.reset();
+      setAuthMessage("", "");
+      updateAuthMode();
+
+      setTimeout(function() {
+        authEmail.focus();
+      }, 100);
+    }
+
+    function closeAuthModal() {
+      authOverlay.classList.remove("open");
+      authForm.reset();
+      setAuthMessage("", "");
+
+      authMode = "login";
+      updateAuthMode();
+    }
+
+    async function handleAuthSubmit(event) {
+      event.preventDefault();
+
+      const name = authName.value.trim();
+      const email = authEmail.value.trim();
+      const password = authPassword.value;
+
+      if (authMode === "register" && !name) {
+        setAuthMessage(
+          "Vui lòng nhập họ và tên.",
+          "error"
+        );
+
+        return;
+      }
+
+      if (!email || !password) {
+        setAuthMessage(
+          "Vui lòng nhập đầy đủ thông tin.",
+          "error"
+        );
+
+        return;
+      }
+
+      if (password.length < 6) {
+        setAuthMessage(
+          "Mật khẩu phải có ít nhất 6 ký tự.",
+          "error"
+        );
+
+        return;
+      }
+
+      authSubmit.disabled = true;
+      authSubmit.textContent = "Đang xử lý...";
+
+      setAuthMessage(
+        "Đang kết nối đến backend...",
+        ""
+      );
+
+      const endpoint = authMode === "register"
+        ? "/api/auth/register"
+        : "/api/auth/login";
+
+      const requestBody = authMode === "register"
+        ? {
+            name: name,
+            email: email,
+            password: password
+          }
+        : {
+            email: email,
+            password: password
+          };
+
+      try {
+        const response = await fetch(
+          API_BASE_URL + endpoint,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(requestBody)
+          }
+        );
+
+        let data = {};
+
+        try {
+          data = await response.json();
+        } catch (error) {
+          data = {};
+        }
+
+        if (!response.ok) {
+          throw new Error(
+            data.message ||
+            "Có lỗi xảy ra. Vui lòng thử lại."
+          );
+        }
+
+        if (authMode === "register") {
+          setAuthMessage(
+            "Đăng ký thành công. Hãy đăng nhập ngay.",
+            "success"
+          );
+
+          setTimeout(function() {
+            authMode = "login";
+            updateAuthMode();
+
+            authEmail.value = email;
+            authPassword.value = "";
+
+            setAuthMessage("", "");
+          }, 1000);
+
+          return;
+        }
+
+        if (!data.token || !data.user) {
+          throw new Error(
+            "Backend không trả về thông tin đăng nhập hợp lệ."
+          );
+        }
+
+        localStorage.setItem(
+          "peernest_token",
+          data.token
+        );
+
+        localStorage.setItem(
+          "peernest_user",
+          JSON.stringify(data.user)
+        );
+
+        updateAuthButtons();
+
+        setAuthMessage(
+          "Đăng nhập thành công.",
+          "success"
+        );
+
+        setTimeout(function() {
+          closeAuthModal();
+        }, 900);
+      } catch (error) {
+        if (error instanceof TypeError) {
+          setAuthMessage(
+            "Không thể kết nối backend. Hãy kiểm tra server tại http://localhost:3000.",
+            "error"
+          );
+        } else {
+          setAuthMessage(
+            error.message,
+            "error"
+          );
+        }
+      } finally {
+        authSubmit.disabled = false;
+        updateAuthMode();
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem("peernest_token");
+      localStorage.removeItem("peernest_user");
+
+      updateAuthButtons();
+
+      alert("Bạn đã đăng xuất khỏi PeerNest.");
+    }
+
+    function handleAuthButtonClick() {
+      const user = getSavedUser();
+      const token = getSavedToken();
+
+      if (user && token) {
+        const shouldLogout = confirm(
+          "Bạn đang đăng nhập bằng tài khoản " +
+          user.email +
+          ". Bạn có muốn đăng xuất không?"
+        );
+
+        if (shouldLogout) {
+          logout();
+        }
+
+        return;
+      }
+
+      openAuthModal("login");
+    }
+
+    authBtnDesktop.addEventListener(
+      "click",
+      handleAuthButtonClick
+    );
+
+    authBtnMobile.addEventListener(
+      "click",
+      function() {
+        mobileMenu.classList.remove("open");
+        handleAuthButtonClick();
+      }
+    );
+
+    loginTab.addEventListener(
+      "click",
+      function() {
+        authMode = "login";
+        updateAuthMode();
+        setAuthMessage("", "");
+      }
+    );
+
+    registerTab.addEventListener(
+      "click",
+      function() {
+        authMode = "register";
+        updateAuthMode();
+        setAuthMessage("", "");
+      }
+    );
+
+    authForm.addEventListener(
+      "submit",
+      handleAuthSubmit
+    );
+
+    document
+      .getElementById("modalClose")
+      .addEventListener(
+        "click",
+        closeAuthModal
+      );
+
+    authOverlay.addEventListener(
+      "click",
+      function(event) {
+        if (event.target === authOverlay) {
+          closeAuthModal();
+        }
+      }
+    );
+
+    window.addEventListener(
+      "keydown",
+      function(event) {
+        if (event.key === "Escape") {
+          closeAuthModal();
+        }
+      }
+    );
+
+    const initialRoute = (
+      window.location.hash || "#home"
+    ).slice(1);
+
+    go(initialRoute);
+    updateAuthButtons();
+  </script>
+</body>
+</html>
