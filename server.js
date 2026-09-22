@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const sqlite3 = require('sqlite3').verbose();
+const { Pool } = require('pg');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -11,55 +11,59 @@ const JWT_SECRET = process.env.JWT_SECRET || "dev_secret_only";
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
 
-const db = new sqlite3.Database('./peernest.db', (err) => {
-  if (err) {
-    console.error('Không thể mở database SQLite:', err);
-  } else {
-    console.log('Đã kết nối database SQLite thành công.');
+// Kết nối PostgreSQL qua biến môi trường DATABASE_URL (lấy từ Render Postgres)
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('render.com')
+    ? { rejectUnauthorized: false }
+    : false
+});
+
+async function initDb() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL,
+        anon_id TEXT NOT NULL UNIQUE,
+        avatar TEXT NOT NULL,
+        is_listener BOOLEAN NOT NULL DEFAULT FALSE,
+        listener_keywords TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS conversations (
+        id SERIAL PRIMARY KEY,
+        requester_id INTEGER NOT NULL REFERENCES users(id),
+        responder_id INTEGER NOT NULL REFERENCES users(id),
+        topic_keywords TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS messages (
+        id SERIAL PRIMARY KEY,
+        conversation_id INTEGER NOT NULL REFERENCES conversations(id),
+        sender_id INTEGER NOT NULL REFERENCES users(id),
+        type TEXT NOT NULL DEFAULT 'text',
+        content TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    console.log('Đã kết nối và khởi tạo bảng PostgreSQL thành công.');
+  } catch (error) {
+    console.error('Lỗi khởi tạo database PostgreSQL:', error);
   }
-});
+}
 
-db.serialize(() => {
-  db.run(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      email TEXT NOT NULL UNIQUE,
-      password TEXT NOT NULL,
-      anon_id TEXT NOT NULL UNIQUE,
-      avatar TEXT NOT NULL,
-      is_listener INTEGER NOT NULL DEFAULT 0,
-      listener_keywords TEXT DEFAULT '',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `, (err) => { if (err) console.error('Lỗi tạo bảng users:', err); });
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS conversations (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      requester_id INTEGER NOT NULL,
-      responder_id INTEGER NOT NULL,
-      topic_keywords TEXT,
-      status TEXT NOT NULL DEFAULT 'active',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (requester_id) REFERENCES users(id),
-      FOREIGN KEY (responder_id) REFERENCES users(id)
-    )
-  `, (err) => { if (err) console.error('Lỗi tạo bảng conversations:', err); });
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS messages (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      conversation_id INTEGER NOT NULL,
-      sender_id INTEGER NOT NULL,
-      type TEXT NOT NULL DEFAULT 'text',
-      content TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (conversation_id) REFERENCES conversations(id),
-      FOREIGN KEY (sender_id) REFERENCES users(id)
-    )
-  `, (err) => { if (err) console.error('Lỗi tạo bảng messages:', err); });
-});
+initDb();
 
 const AVATAR_POOL = ['🦊', '🐢', '🐧', '🦉', '🐝', '🐨', '🐬', '🦔', '🐿️', '🦋', '🐙', '🐼'];
 
@@ -82,23 +86,16 @@ function parseKeywords(raw) {
     .filter(Boolean);
 }
 
-function checkAnonAvailable(name, callback) {
-  db.get('SELECT id FROM users WHERE anon_id = ?', [name], function(err, row) {
-    if (err) {
-      console.error('Lỗi checkAnonAvailable:', err);
-      return callback(err);
-    }
-    callback(null, !row);
-  });
+async function isAnonAvailable(name) {
+  const result = await pool.query('SELECT id FROM users WHERE anon_id = $1', [name]);
+  return result.rows.length === 0;
 }
 
-function generateUniqueAnonId(callback) {
+async function generateUniqueAnonId() {
   const candidate = generateAnonId();
-  checkAnonAvailable(candidate, function(err, available) {
-    if (err) return callback(err);
-    if (available) return callback(null, candidate);
-    generateUniqueAnonId(callback);
-  });
+  const available = await isAnonAvailable(candidate);
+  if (available) return candidate;
+  return generateUniqueAnonId();
 }
 
 function authMiddleware(req, res, next) {
@@ -137,262 +134,230 @@ app.post('/api/auth/register', async (req, res) => {
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    function insertUser(anonId) {
-      const avatar = pickAvatar(anonId);
-      const listenerFlag = isListener ? 1 : 0;
-      const keywords = listenerFlag ? parseKeywords(listenerKeywords).join(',') : '';
-
-      db.run(
-        'INSERT INTO users (name, email, password, anon_id, avatar, is_listener, listener_keywords) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [name.trim(), email.trim().toLowerCase(), hashedPassword, anonId, avatar, listenerFlag, keywords],
-        function(err) {
-          if (err) {
-            console.error('Lỗi INSERT users (register):', err);
-            if (err.message.includes('UNIQUE') && err.message.includes('users.email')) {
-              return res.status(409).json({ message: 'Email này đã được đăng ký.' });
-            }
-            if (err.message.includes('UNIQUE')) {
-              return res.status(409).json({ message: 'Tên/ID ẩn danh này đã có người dùng, vui lòng chọn tên khác.' });
-            }
-            return res.status(500).json({ message: 'Không thể tạo tài khoản.', detail: err.message });
-          }
-
-          res.status(201).json({
-            message: 'Đăng ký thành công.',
-            user: {
-              id: this.lastID,
-              name: name.trim(),
-              email: email.trim().toLowerCase(),
-              anonId: anonId,
-              avatar: avatar
-            }
-          });
-        }
-      );
-    }
-
+    let anonId;
     if (anonName && anonName.trim()) {
       const wanted = anonName.trim();
-
-      checkAnonAvailable(wanted, function(err, available) {
-        if (err) {
-          console.error('Lỗi checkAnonAvailable trong register:', err);
-          return res.status(500).json({ message: 'Lỗi server.', detail: err.message });
-        }
-        if (!available) {
-          return res.status(409).json({ message: 'Tên ẩn danh này đã có người dùng, vui lòng chọn tên khác.' });
-        }
-        insertUser(wanted);
-      });
+      const available = await isAnonAvailable(wanted);
+      if (!available) {
+        return res.status(409).json({ message: 'Tên ẩn danh này đã có người dùng, vui lòng chọn tên khác.' });
+      }
+      anonId = wanted;
     } else {
-      generateUniqueAnonId(function(err, anonId) {
-        if (err) {
-          console.error('Lỗi generateUniqueAnonId trong register:', err);
-          return res.status(500).json({ message: 'Lỗi server.', detail: err.message });
-        }
-        insertUser(anonId);
-      });
+      anonId = await generateUniqueAnonId();
     }
+
+    const avatar = pickAvatar(anonId);
+    const listenerFlag = !!isListener;
+    const keywords = listenerFlag ? parseKeywords(listenerKeywords).join(',') : '';
+
+    const result = await pool.query(
+      `INSERT INTO users (name, email, password, anon_id, avatar, is_listener, listener_keywords)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+      [name.trim(), email.trim().toLowerCase(), hashedPassword, anonId, avatar, listenerFlag, keywords]
+    );
+
+    res.status(201).json({
+      message: 'Đăng ký thành công.',
+      user: {
+        id: result.rows[0].id,
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        anonId: anonId,
+        avatar: avatar
+      }
+    });
   } catch (error) {
-    console.error('Lỗi ngoại lệ trong register (bcrypt hoặc khác):', error);
+    console.error('Lỗi trong register:', error);
+
+    if (error.code === '23505') { // unique_violation của Postgres
+      if (error.constraint && error.constraint.includes('email')) {
+        return res.status(409).json({ message: 'Email này đã được đăng ký.' });
+      }
+      return res.status(409).json({ message: 'Tên/ID ẩn danh này đã có người dùng, vui lòng chọn tên khác.' });
+    }
+
     res.status(500).json({ message: 'Lỗi server.', detail: error.message });
   }
 });
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
     return res.status(400).json({ message: 'Vui lòng nhập email và mật khẩu.' });
   }
 
-  db.get(
-    'SELECT * FROM users WHERE email = ?',
-    [email.trim().toLowerCase()],
-    async (err, user) => {
-      if (err) {
-        console.error('Lỗi SELECT users (login):', err);
-        return res.status(500).json({ message: 'Lỗi server.', detail: err.message });
-      }
+  try {
+    const result = await pool.query(
+      'SELECT * FROM users WHERE email = $1',
+      [email.trim().toLowerCase()]
+    );
 
-      if (!user) {
-        return res.status(401).json({ message: 'Email hoặc mật khẩu không đúng.' });
-      }
+    const user = result.rows[0];
 
-      try {
-        const valid = await bcrypt.compare(password, user.password);
-
-        if (!valid) {
-          return res.status(401).json({ message: 'Email hoặc mật khẩu không đúng.' });
-        }
-
-        const token = jwt.sign(
-          { id: user.id, email: user.email },
-          JWT_SECRET,
-          { expiresIn: '7d' }
-        );
-
-        res.json({
-          message: 'Đăng nhập thành công.',
-          token,
-          user: {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            anonId: user.anon_id,
-            avatar: user.avatar,
-            isListener: !!user.is_listener
-          }
-        });
-      } catch (error) {
-        console.error('Lỗi ngoại lệ trong login (bcrypt.compare):', error);
-        res.status(500).json({ message: 'Lỗi server.', detail: error.message });
-      }
+    if (!user) {
+      return res.status(401).json({ message: 'Email hoặc mật khẩu không đúng.' });
     }
-  );
+
+    const valid = await bcrypt.compare(password, user.password);
+
+    if (!valid) {
+      return res.status(401).json({ message: 'Email hoặc mật khẩu không đúng.' });
+    }
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      message: 'Đăng nhập thành công.',
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        anonId: user.anon_id,
+        avatar: user.avatar,
+        isListener: !!user.is_listener
+      }
+    });
+  } catch (error) {
+    console.error('Lỗi trong login:', error);
+    res.status(500).json({ message: 'Lỗi server.', detail: error.message });
+  }
 });
 
-function loadConversationIfMember(conversationId, userId, callback) {
-  db.get('SELECT * FROM conversations WHERE id = ?', [conversationId], (err, convo) => {
-    if (err) {
-      console.error('Lỗi loadConversationIfMember:', err);
-      return callback(err);
-    }
-    if (!convo) return callback(null, null);
-    if (convo.requester_id !== userId && convo.responder_id !== userId) {
-      return callback(null, false);
-    }
-    callback(null, convo);
-  });
+async function loadConversationIfMember(conversationId, userId) {
+  const result = await pool.query('SELECT * FROM conversations WHERE id = $1', [conversationId]);
+  const convo = result.rows[0];
+
+  if (!convo) return null;
+  if (convo.requester_id !== userId && convo.responder_id !== userId) return false;
+  return convo;
 }
 
-app.post('/api/safe-space/match', authMiddleware, (req, res) => {
+app.post('/api/safe-space/match', authMiddleware, async (req, res) => {
   const keywords = parseKeywords(req.body.keywords);
 
   if (keywords.length === 0) {
     return res.status(400).json({ message: 'Vui lòng nhập ít nhất một từ khóa về vấn đề bạn đang gặp.' });
   }
 
-  db.all(
-    'SELECT id, anon_id, avatar, listener_keywords FROM users WHERE is_listener = 1 AND id != ?',
-    [req.userId],
-    (err, listeners) => {
-      if (err) {
-        console.error('Lỗi SELECT listeners (match):', err);
-        return res.status(500).json({ message: 'Lỗi server.', detail: err.message });
-      }
+  try {
+    const result = await pool.query(
+      'SELECT id, anon_id, avatar, listener_keywords FROM users WHERE is_listener = TRUE AND id != $1',
+      [req.userId]
+    );
 
-      if (!listeners.length) {
-        return res.status(404).json({ message: 'Hiện chưa có người đồng hành phù hợp, vui lòng thử lại sau.' });
-      }
+    const listeners = result.rows;
 
-      let best = null;
-      let bestScore = -1;
-
-      listeners.forEach((listener) => {
-        const listenerKeywords = parseKeywords(listener.listener_keywords);
-        const score = keywords.filter((k) => listenerKeywords.includes(k)).length;
-
-        if (score > bestScore) {
-          bestScore = score;
-          best = listener;
-        }
-      });
-
-      if (bestScore <= 0) {
-        best = listeners[Math.floor(Math.random() * listeners.length)];
-      }
-
-      db.run(
-        'INSERT INTO conversations (requester_id, responder_id, topic_keywords, status) VALUES (?, ?, ?, ?)',
-        [req.userId, best.id, keywords.join(','), 'active'],
-        function(err) {
-          if (err) {
-            console.error('Lỗi INSERT conversations (match):', err);
-            return res.status(500).json({ message: 'Không thể tạo cuộc trò chuyện.', detail: err.message });
-          }
-
-          res.status(201).json({
-            conversationId: this.lastID,
-            partner: { anonId: best.anon_id, avatar: best.avatar },
-            matchedByKeyword: bestScore > 0
-          });
-        }
-      );
+    if (!listeners.length) {
+      return res.status(404).json({ message: 'Hiện chưa có người đồng hành phù hợp, vui lòng thử lại sau.' });
     }
-  );
+
+    let best = null;
+    let bestScore = -1;
+
+    listeners.forEach((listener) => {
+      const listenerKeywords = parseKeywords(listener.listener_keywords);
+      const score = keywords.filter((k) => listenerKeywords.includes(k)).length;
+
+      if (score > bestScore) {
+        bestScore = score;
+        best = listener;
+      }
+    });
+
+    if (bestScore <= 0) {
+      best = listeners[Math.floor(Math.random() * listeners.length)];
+    }
+
+    const insertResult = await pool.query(
+      `INSERT INTO conversations (requester_id, responder_id, topic_keywords, status)
+       VALUES ($1, $2, $3, $4) RETURNING id`,
+      [req.userId, best.id, keywords.join(','), 'active']
+    );
+
+    res.status(201).json({
+      conversationId: insertResult.rows[0].id,
+      partner: { anonId: best.anon_id, avatar: best.avatar },
+      matchedByKeyword: bestScore > 0
+    });
+  } catch (error) {
+    console.error('Lỗi trong match:', error);
+    res.status(500).json({ message: 'Lỗi server.', detail: error.message });
+  }
 });
 
-app.get('/api/safe-space/active', authMiddleware, (req, res) => {
-  db.get(
-    `SELECT c.*,
-      ru.anon_id AS requester_anon, ru.avatar AS requester_avatar,
-      su.anon_id AS responder_anon, su.avatar AS responder_avatar
-     FROM conversations c
-     JOIN users ru ON ru.id = c.requester_id
-     JOIN users su ON su.id = c.responder_id
-     WHERE (c.requester_id = ? OR c.responder_id = ?) AND c.status = 'active'
-     ORDER BY c.id DESC LIMIT 1`,
-    [req.userId, req.userId],
-    (err, convo) => {
-      if (err) {
-        console.error('Lỗi SELECT active conversation:', err);
-        return res.status(500).json({ message: 'Lỗi server.', detail: err.message });
-      }
-      if (!convo) return res.json({ conversation: null });
+app.get('/api/safe-space/active', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT c.*,
+        ru.anon_id AS requester_anon, ru.avatar AS requester_avatar,
+        su.anon_id AS responder_anon, su.avatar AS responder_avatar
+       FROM conversations c
+       JOIN users ru ON ru.id = c.requester_id
+       JOIN users su ON su.id = c.responder_id
+       WHERE (c.requester_id = $1 OR c.responder_id = $1) AND c.status = 'active'
+       ORDER BY c.id DESC LIMIT 1`,
+      [req.userId]
+    );
 
-      const isRequester = convo.requester_id === req.userId;
+    const convo = result.rows[0];
 
-      res.json({
-        conversation: {
-          id: convo.id,
-          topicKeywords: convo.topic_keywords,
-          partner: {
-            anonId: isRequester ? convo.responder_anon : convo.requester_anon,
-            avatar: isRequester ? convo.responder_avatar : convo.requester_avatar
-          }
+    if (!convo) return res.json({ conversation: null });
+
+    const isRequester = convo.requester_id === req.userId;
+
+    res.json({
+      conversation: {
+        id: convo.id,
+        topicKeywords: convo.topic_keywords,
+        partner: {
+          anonId: isRequester ? convo.responder_anon : convo.requester_anon,
+          avatar: isRequester ? convo.responder_avatar : convo.requester_avatar
         }
-      });
-    }
-  );
+      }
+    });
+  } catch (error) {
+    console.error('Lỗi trong active conversation:', error);
+    res.status(500).json({ message: 'Lỗi server.', detail: error.message });
+  }
 });
 
-app.get('/api/safe-space/conversations/:id/messages', authMiddleware, (req, res) => {
+app.get('/api/safe-space/conversations/:id/messages', authMiddleware, async (req, res) => {
   const conversationId = req.params.id;
   const afterId = parseInt(req.query.after || '0', 10);
 
-  loadConversationIfMember(conversationId, req.userId, (err, convo) => {
-    if (err) {
-      console.error('Lỗi loadConversationIfMember (get messages):', err);
-      return res.status(500).json({ message: 'Lỗi server.', detail: err.message });
-    }
+  try {
+    const convo = await loadConversationIfMember(conversationId, req.userId);
+
     if (convo === null) return res.status(404).json({ message: 'Không tìm thấy cuộc trò chuyện.' });
     if (convo === false) return res.status(403).json({ message: 'Bạn không có quyền xem cuộc trò chuyện này.' });
 
-    db.all(
-      'SELECT id, sender_id, type, content, created_at FROM messages WHERE conversation_id = ? AND id > ? ORDER BY id ASC',
-      [conversationId, afterId],
-      (err, rows) => {
-        if (err) {
-          console.error('Lỗi SELECT messages:', err);
-          return res.status(500).json({ message: 'Lỗi server.', detail: err.message });
-        }
-
-        const messages = rows.map((m) => ({
-          id: m.id,
-          type: m.type,
-          content: m.content,
-          isMine: m.sender_id === req.userId,
-          createdAt: m.created_at
-        }));
-
-        res.json({ messages });
-      }
+    const result = await pool.query(
+      'SELECT id, sender_id, type, content, created_at FROM messages WHERE conversation_id = $1 AND id > $2 ORDER BY id ASC',
+      [conversationId, afterId]
     );
-  });
+
+    const messages = result.rows.map((m) => ({
+      id: m.id,
+      type: m.type,
+      content: m.content,
+      isMine: m.sender_id === req.userId,
+      createdAt: m.created_at
+    }));
+
+    res.json({ messages });
+  } catch (error) {
+    console.error('Lỗi trong get messages:', error);
+    res.status(500).json({ message: 'Lỗi server.', detail: error.message });
+  }
 });
 
-app.post('/api/safe-space/conversations/:id/messages', authMiddleware, (req, res) => {
+app.post('/api/safe-space/conversations/:id/messages', authMiddleware, async (req, res) => {
   const conversationId = req.params.id;
   const { type, content } = req.body;
 
@@ -404,32 +369,26 @@ app.post('/api/safe-space/conversations/:id/messages', authMiddleware, (req, res
     return res.status(413).json({ message: 'Ảnh quá lớn, vui lòng chọn ảnh nhỏ hơn.' });
   }
 
-  loadConversationIfMember(conversationId, req.userId, (err, convo) => {
-    if (err) {
-      console.error('Lỗi loadConversationIfMember (post message):', err);
-      return res.status(500).json({ message: 'Lỗi server.', detail: err.message });
-    }
+  try {
+    const convo = await loadConversationIfMember(conversationId, req.userId);
+
     if (convo === null) return res.status(404).json({ message: 'Không tìm thấy cuộc trò chuyện.' });
     if (convo === false) return res.status(403).json({ message: 'Bạn không có quyền gửi tin nhắn trong cuộc trò chuyện này.' });
 
-    db.run(
-      'INSERT INTO messages (conversation_id, sender_id, type, content) VALUES (?, ?, ?, ?)',
-      [conversationId, req.userId, type, content],
-      function(err) {
-        if (err) {
-          console.error('Lỗi INSERT messages:', err);
-          return res.status(500).json({ message: 'Không thể gửi tin nhắn.', detail: err.message });
-        }
-
-        res.status(201).json({
-          message: { id: this.lastID, type, content, isMine: true }
-        });
-      }
+    const result = await pool.query(
+      'INSERT INTO messages (conversation_id, sender_id, type, content) VALUES ($1, $2, $3, $4) RETURNING id',
+      [conversationId, req.userId, type, content]
     );
-  });
+
+    res.status(201).json({
+      message: { id: result.rows[0].id, type, content, isMine: true }
+    });
+  } catch (error) {
+    console.error('Lỗi trong post message:', error);
+    res.status(500).json({ message: 'Không thể gửi tin nhắn.', detail: error.message });
+  }
 });
 
-// Bắt các lỗi không mong muốn để tiến trình không crash âm thầm
 process.on('unhandledRejection', (reason) => {
   console.error('Unhandled Promise Rejection:', reason);
 });
